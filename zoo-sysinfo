@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+# Author: pidpawel <pidpawel.eu>
+# URL: https://pidpawel.eu/zoo/
+# License: CC-BY-SA http://creativecommons.org/licenses/by-sa/3.0/pl/
+import json
+import sh
+import subprocess
+
+meminfo = {}
+_meminfo = sh.cat('/proc/meminfo').rstrip('\n').split('\n')
+for line in _meminfo:
+	line = line.split(':')
+	meminfo[line[0]] = int(line[1].lstrip(' ').split(' ')[0])
+
+results = {
+	'hostname': sh.hostname().rstrip('\n'),
+	'fqdn': sh.hostname('-f').rstrip('\n'),
+
+	'uname': sh.uname('-a').rstrip('\n'),
+	'processor': sh.uname('-p').rstrip('\n'),
+	'arch': sh.uname('-m').rstrip('\n'),
+	'kernel': sh.uname('-r').rstrip('\n'),
+
+	'uptime': float(sh.cat('/proc/uptime').split(' ')[0]), # In seconds
+	'loadavg': ' '.join(sh.cat('/proc/loadavg').split(' ')[:3]),
+
+	'threads': int(sh.wc(sh.grep(sh.cat('/proc/cpuinfo'), 'processor'), '-l')),
+	'cores': int(subprocess.check_output('cat /proc/cpuinfo | grep "core id" | sort | uniq | wc -l', shell=True)),
+	'cpu_mhz': [ float(a) for a in str(subprocess.check_output('cat /proc/cpuinfo | grep "cpu MHz" | cut -d":" -f2 ', shell=True, universal_newlines=True)).rstrip('\n').split('\n') ],
+
+	'mem_total': meminfo['MemTotal'],
+	'mem_free': meminfo['MemFree'],
+	'mem_used': meminfo['MemTotal'] - meminfo['MemFree'] - meminfo['Buffers'] - meminfo['Cached'],
+
+	'mem_buffers': meminfo['Buffers'],
+	'mem_cached': meminfo['Cached'],
+
+	'swap_total': meminfo['SwapTotal'],
+	'swap_free': meminfo['SwapFree'],
+
+	'processes': int(subprocess.check_output('ps aux | grep -v "\\[" | wc -l', shell=True)) - 1,
+	'processes_running': int(sh.cat('/proc/loadavg').split(' ')[3].split('/')[0])
+}
+
+print(json.dumps(results))

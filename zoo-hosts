@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+# Author: pidpawel <pidpawel.eu>
+# URL: https://pidpawel.eu/zoo/
+# License: CC-BY-SA http://creativecommons.org/licenses/by-sa/3.0/pl/
+import zoolib
+import argparse
+
+parser = argparse.ArgumentParser(description='List zoo hosts.')
+parser.add_argument('-n', '--nodes', dest='nodes', action='store_true', help='List nodes.')
+parser.add_argument('-s', '--special', dest='special', action='store_true', help='List special cluster hosts.')
+parser.add_argument('-a', '--avahi', dest='avahi', action='store_true', help='List all avahi declared ssh hosts.')
+parser.set_defaults(nodes=False)
+parser.set_defaults(special=False)
+parser.set_defaults(avahi=False)
+
+parser.add_argument('-hn', '--hostnames', dest='hostnames', action='store_true', help='Print hostnames.')
+parser.add_argument('-i', '--ip', dest='hostnames', action='store_false', help='Print IPs instead of hostnames.')
+parser.set_defaults(hostnames=True)
+
+parser.add_argument('-nl', '--newlines', dest='newlines', action='store_true', help='Print newline after every hostname.')
+parser.set_defaults(newlines=False)
+
+args = parser.parse_args()
+
+targets = []
+if args.avahi:
+	targets.append('avahi')
+if args.nodes:
+	targets.append('nodes')
+if args.special:
+	targets.append('special')
+
+if args.newlines:
+	for host in zoolib.discovery(hostnames=args.hostnames, targets=targets):
+		print(host)
+else:
+	print(" ".join(zoolib.discovery(hostnames=args.hostnames, targets=targets)))

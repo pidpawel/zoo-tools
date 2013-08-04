@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+# Author: pidpawel <pidpawel.eu>
+# URL: https://pidpawel.eu/zoo/
+# License: CC-BY-SA http://creativecommons.org/licenses/by-sa/3.0/pl/
+import zoolib
+import argparse
+import sh
+
+parser = argparse.ArgumentParser(description='cssh zoo hosts.')
+parser.add_argument('-n', '--nodes', dest='nodes', action='store_true', help='Connect to nodes.')
+parser.add_argument('-s', '--special', dest='special', action='store_true', help='Connect to special cluster hosts.')
+parser.add_argument('-a', '--avahi', dest='avahi', action='store_true', help='Connect to all avahi declared ssh hosts.')
+parser.set_defaults(nodes=False)
+parser.set_defaults(special=False)
+parser.set_defaults(avahi=False)
+
+parser.add_argument('-hn', '--hostnames', dest='hostnames', action='store_true', help='Connect by hostnames.')
+parser.add_argument('-i', '--ip', dest='hostnames', action='store_false', help='Connect by IPs instead of hostnames.')
+parser.set_defaults(hostnames=True)
+
+args = parser.parse_args()
+
+targets = []
+if args.avahi:
+	targets.append('avahi')
+if args.nodes:
+	targets.append('nodes')
+if args.special:
+	targets.append('special')
+
+hosts = zoolib.discovery(hostnames=args.hostnames, targets=targets)
+hosts = [ 'root@'+h for h in hosts ]
+
+sh.cssh(hosts)

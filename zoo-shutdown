@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+# Author: pidpawel <pidpawel.eu>
+# URL: https://pidpawel.eu/zoo/
+# License: CC-BY-SA http://creativecommons.org/licenses/by-sa/3.0/pl/
+import zoolib
+import argparse
+import time
+import sys
+
+parser = argparse.ArgumentParser(description='Shutdown or reboot zoo.')
+parser.add_argument('-n', '--nodes', dest='nodes', action='store_true', help='Manipulate nodes.')
+parser.add_argument('-s', '--special', dest='special', action='store_true', help='Manipulate special cluster hosts.')
+parser.add_argument('-a', '--avahi', dest='avahi', action='store_true', help='Manipulate all avahi declared ssh hosts.')
+parser.set_defaults(nodes=False)
+parser.set_defaults(special=False)
+parser.set_defaults(avahi=False)
+
+parser.add_argument('-nc', '--no-confirm', dest='confirm', action='store_false', help='Don\'t require user\'s confirmation.')
+parser.set_defaults(reboot=True)
+
+parser.add_argument('-r', '--reboot', dest='reboot', action='store_true', help='Reboot instead of shutdown.')
+parser.add_argument('-sd', '--shutdown', dest='reboot', action='store_false', help='Shutdown.')
+parser.set_defaults(reboot=False)
+
+parser.add_argument('-d', '--delay', type=float, default=5, help='Delay between shutdown commands.')
+
+args = parser.parse_args()
+
+targets = []
+if args.avahi:
+	targets.append('avahi')
+if args.nodes:
+	targets.append('nodes')
+if args.special:
+	targets.append('special')
+
+if args.confirm:
+	confirm = input("Do you really want to continue? (Type YES to confirm) ")
+	if confirm != "YES":
+		print("Aborting")
+		sys.exit(1)
+
+hosts = zoolib.discovery(targets=targets)
+
+if args.delay == 0:
+	print("{} all machines now!".format( 'Rebooting' if args.reboot else 'Shutting down' ))
+	zoolib.cluster_exec(hosts, 'shutdown -r now' if args.reboot else 'shutdown -h now')
+
+else:
+	print("Found {} hosts, will take about {} seconds to {} zoo.".format(
+				len(hosts),
+				len(hosts)*args.delay,
+				'reboot' if args.reboot else 'shutdown' ))
+
+	for host in hosts:
+		print("{} host {}".format( 'Rebooting' if args.reboot else 'Shutting down', host ))
+		zoolib.host_exec(host, 'shutdown -r now' if args.reboot else 'shutdown -h now')
+		time.sleep(args.delay)

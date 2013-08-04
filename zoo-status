@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+# Author: pidpawel <pidpawel.eu>
+# URL: https://pidpawel.eu/zoo/
+# License: CC-BY-SA http://creativecommons.org/licenses/by-sa/3.0/pl/
+import zoolib
+import argparse
+from prettytable import PrettyTable
+import datetime
+
+parser = argparse.ArgumentParser(description='Get zoo status.')
+parser.add_argument('-n', '--nodes', dest='nodes', action='store_true', help='List nodes.')
+parser.add_argument('-s', '--special', dest='special', action='store_true', help='List special cluster hosts.')
+parser.add_argument('-a', '--avahi', dest='avahi', action='store_true', help='List all avahi declared ssh hosts.')
+parser.set_defaults(nodes=False)
+parser.set_defaults(special=False)
+parser.set_defaults(avahi=False)
+
+args = parser.parse_args()
+
+if args.avahi == False and args.nodes == False and args.special == False:
+	targets = ['nodes', 'special']
+else:
+	targets = []
+
+if args.avahi:
+	targets.append('avahi')
+if args.nodes:
+	targets.append('nodes')
+if args.special:
+	targets.append('special')
+
+hosts = zoolib.discovery(targets=targets)
+
+columns = ['Hostname', 'CPU', 'Memory Used/Total', 'Processes', 'Load', 'Uptime']
+status = zoolib.cluster_sysinfo(hosts)
+
+table = PrettyTable(columns)
+table.align['Hostname'] = 'l'
+table.align['Memory Used/Total'] = 'r'
+table.align['Processes'] = 'r'
+table.align['Load'] = 'r'
+table.align['Uptime'] = 'r'
+
+table.sortby = 'Hostname'
+table.sort_key = lambda a: a[0].lower()
+
+totals = {
+		'cores': 0,
+		'threads': 0,
+		'mem_total': 0,
+		'mem_used': 0,
+		'processes': 0,
+		'processes_running': 0
+		}
+
+for hostname, data in status.items():
+	table.add_row([	data['fqdn'],
+					str(data['cores']) + ' (' + str(data['threads']) + ') {:.1f} GHz'.format(data['cpu_mhz'][0]/1000),
+					str(int(data['mem_used']/1024)) + 'MB / ' + str(int(data['mem_total']/1024)) + 'MB',
+					str(data['processes_running']) + ' / ' + str(data['processes']),
+					data['loadavg'],
+					datetime.timedelta(seconds=int(float(data['uptime'])))])
+	for key in totals.keys():
+		totals[key] += data[key]
+
+table.add_row([	'Total ' + str(len(hosts)) + ' nodes',
+				str(totals['cores']) + ' (' + str(totals['threads']) + ')',
+				str(int(totals['mem_used']/1024)) + 'MB / ' + str(int(totals['mem_total']/1024)) + 'MB',
+				str(totals['processes_running']) + ' / ' + str(totals['processes']),
+				'', ''])
+
+print(table.get_string())
